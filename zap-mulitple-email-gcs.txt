@@ -1,0 +1,166 @@
+def scan_type
+ def target
+ def strarr
+ def name=""
+ def bname=""
+ def SendEmailNotification(String result) {
+  
+    // config 
+    def to = emailextrecipients([
+           requestor()
+    ])
+    
+    // set variables
+    def subject = "${env.JOB_NAME} - Build #${env.BUILD_NUMBER} ${result}"
+    def content = '${JELLY_SCRIPT,template="html"}'
+
+    // send email
+    if(to != null && !to.isEmpty()) {
+        env.ForEmailPlugin = env.WORKSPACE
+        emailext mimeType: 'text/html',
+        body: '${FILE, path="/var/lib/jenkins/workspace/zap/report.html"}',
+        subject: currentBuild.currentResult + " : " + env.JOB_NAME,
+        to: to, attachLog: true
+    }
+}
+			
+ pipeline {
+    agent any
+    environment {
+        CREDENTIAL = credentials('kubernetes')
+      }
+	parameters {
+         	choice  choices: ["Baseline", "APIS", "Full"],
+                 	description: 'Type of scan that is going to perform inside the container',
+                 	name: 'SCAN_TYPE'
+		
+		    
+		    
+		    
+		string defaultValue: "https://niveussolutions.com,https://flipkart.com",
+                 description: 'Target URL to scan',
+                 name: 'TARGET'
+ 
+		booleanParam defaultValue: true,
+                 	description: 'Parameter to know if wanna generate report.',
+                 	name: 'GENERATE_REPORT'
+     	}
+	
+    stages {
+	    
+		
+	    stage('Zap Installation') {
+                    steps {
+				        script{
+				            
+				            
+				            scan_type = "${params.SCAN_TYPE}"
+                            echo "----> scan_type: $scan_type"
+			                target = "${params.TARGET}"
+			                //count = "${params.Count}"
+			                def values = target.split(',')
+			                echo values[1]
+
+			                //sh "#!/bin/bash"
+                           //sh "#!/usr/bin/env bash"
+                           //sh "#!/usr/local/bin/bash"
+                           //sh "/bin/bash"
+                           // sh """
+                             //   /bin/bash
+                               // echo $SHELL
+                               // IFS=","
+                              //  read -a strarr <<< $target
+                               // echo $strarr
+                           // """
+                            
+                            //#Read the string value
+                            //sh 'echo "Enter book name, author name and price by separating comma. "'
+                           // sh 'read text'
+
+                            //# Set comma as delimiter
+                        
+
+                            //#Read the split words into an array based on comma delimiter
+                            //read -a strarr <<< "$target"
+                                for (txt in values) {
+    
+                                    sh "echo ${txt}"
+                                    
+
+                                //for val in "${values[@]}";
+                                //do
+                               // for ((i=0;i<$count;i++))
+                               // do
+                                    
+       
+                                        name = sh(script: "echo '${txt}' | tr -d '[:punct:]'", returnStdout: true)
+                                        name = name.trim()
+                                        
+                                        echo "$name"
+                                        
+                                        bname="fazil" + name
+                                        
+                                        echo "$bname"
+                                        
+                                        echo "Done"
+                                sh"""
+                                    
+                                    echo "Pulling up last OWASP ZAP container --> Start"
+			                        docker pull owasp/zap2docker-stable
+			    
+			                        echo "Starting container --> Start"
+			                        docker run -dt --name owasp \
+    			                    owasp/zap2docker-stable \
+    			                    /bin/bash
+			   
+			    
+			                        echo "Creating Workspace Inside Docker"
+			                        docker exec owasp \
+    			                    mkdir /zap/wrk
+                            """       
+                                    
+                                    
+                                if(scan_type == "Baseline"){
+                                    sh """
+                                            docker exec owasp \
+                                            zap-baseline.py \
+                                            -t $txt \
+                                            -r report.html \
+                                            -I
+			       
+			                                docker cp owasp:/zap/wrk/report.html ${WORKSPACE}/report.html
+			                       
+			                          
+			                           gcloud version
+
+                                        gcloud auth activate-service-account --key-file="$CREDENTIAL"
+                                        
+                                        gsutil mb -c regional -l us-central1 gs://$bname
+                                        
+                                        gsutil cp -r $WORKSPACE/report.html gs://$bname
+                                        
+                                        
+                                        
+                                        
+                   
+                   
+			                           docker stop owasp
+			                           docker rm owasp
+			                           
+                                    
+                                    """
+                                     SendEmailNotification("SUCCESSFUL")
+                                }
+                                
+				                else{
+                                    echo "Something went wrong..."
+                                }
+                            }
+		                }
+	                }
+	            }	
+
+            }
+ }
+
+
